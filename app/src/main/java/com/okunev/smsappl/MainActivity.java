@@ -70,12 +70,15 @@ public class MainActivity extends AppCompatActivity {
         stopwatch = (Chronometer) findViewById(R.id.stopWatch);
         log.setMovementMethod(new ScrollingMovementMethod());
 
-
+        intent = new Intent(this, SmsLogger.class);
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 seekBarText.setText("" + (double) progress / 2 + " minutes");
+                if(progress%2!=0)
                 millisec = (long) ((double) progress / 2 * 60 * 1000 + (double) progress % 2 * 60 * 1000) - 60000;
+                else
+                    millisec = (long) ((double) progress / 2 * 60 * 1000 + (double) progress % 2 * 60 * 1000);
             }
 
             @Override
@@ -89,9 +92,13 @@ public class MainActivity extends AppCompatActivity {
         });
         //    disableBroadcastReceiver();
         seekBarText.setText("" + (double) seekBar.getProgress() / 2 + " minutes");
-        millisec = (long) ((double) seekBar.getProgress() / 2 * 60 * 1000 + (double) seekBar.getProgress() % 2 * 60 * 1000) - 60000;
-        prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        if(seekBar.getProgress()%2!=0)
+            millisec = (long) ((double) seekBar.getProgress() / 2 * 60 * 1000 + (double) seekBar.getProgress() % 2 * 60 * 1000) - 60000;
+        else
+            millisec = (long) ((double) seekBar.getProgress() / 2 * 60 * 1000 + (double)seekBar.getProgress() % 2 * 60 * 1000);
+         prefs = PreferenceManager.getDefaultSharedPreferences(this);
         mills = prefs.getLong("MILLISECONDS", 570000);
+        carNum = prefs.getString("CAR_NUMBER", "");
         getBool(isWorking);
     }
 
@@ -112,7 +119,7 @@ public class MainActivity extends AppCompatActivity {
             //   registerReceiver(broadcastReceiver, new IntentFilter("broadCastName"));
             //  enableBroadcastReceiver();
 
-            intent = new Intent(this, SmsLogger.class);
+
             myReceiver = new MyReceiver();
             IntentFilter intentFilter = new IntentFilter();
             intentFilter.addAction("SERV-ACT");
@@ -133,14 +140,13 @@ public class MainActivity extends AppCompatActivity {
             intent.putExtra("THISSUM", thissum);
             intent.putExtra("FUND", fund);
             startService(intent);
-            Toast.makeText(this, "Starting service...", Toast.LENGTH_SHORT).show();
+         //   Toast.makeText(this, "Starting service...", Toast.LENGTH_SHORT).show();
 
         } else Toast.makeText(this, "Не заполнено одно из полей", Toast.LENGTH_SHORT).show();
     }
 
 
     private class MyReceiver extends BroadcastReceiver {
-
         @Override
         public void onReceive(Context arg0, Intent arg1) {
             parkNumber.setText(arg1.getStringExtra("PARKING_NUMBER"));
@@ -160,12 +166,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void stop(View v) {
-        stopService(intent);
+      Boolean r =  stopService(intent);
+        if(r)Toast.makeText(this, "Сервис остановлен", Toast.LENGTH_SHORT).show();
         try {
             //   countDownTimer.cancel();
+
             chronometer.stop();
+            disableBroadcastReceiver();
         } catch (Exception l) {
-            log.append("Chronometer isn't working!\n");
+          //  log.append("Chronometer isn't working!\n");
         }
 
         Toast.makeText(this, "Вам необходимо покинуть парковку в течение " + c3.getTitle(), Toast.LENGTH_LONG).show();
@@ -199,88 +208,13 @@ public class MainActivity extends AppCompatActivity {
         else setVis(View.INVISIBLE, View.VISIBLE);
     }
 
- /*   BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            Bundle b = intent.getExtras();
-            String number = b.getString("NUMBER");
-            String message = b.getString("MESSAGE");
-            //Спасибо! Парковка автомобиля А555МР97 авторизована до
-            // 15.11.15 01:35. Чтобы остановить парковку отправьте "S" ли "C" на номер 7757.
-            //Спасибо. Ваша парковка завершена 15.11.15 02:00. Общая сумма 55.46 руб.
-            // Баланс лицевого счета: 35.33 руб.
-            if (number.equals("MegaFon_web") & message.contains("авторизована до")) {
-                log.append(calendar.getInstance().getTime().toString().split(" ")[3] + ": Parking is authorized!\n");
-                smsSend("S");
-            }
-            if (number.equals("MegaFon_web") & message.contains("Общая сумма")) {
-                thissum += Double.parseDouble(message.split("Общая сумма ")[1].split(" ")[0]);
-                fund = Double.parseDouble(message.split("счета: ")[1].split(" ")[0]);
-                String sum = thissum + "";
-                parkCosts.setText(sum.substring(0, sum.indexOf('.') + 3) + "p.");
-                funds.setText(fund + "p.");
-                log.append(calendar.getInstance().getTime().toString().split(" ")[3] + ": Parking has stopped!\n");
-                startTimer(mills, c3);
-            }
-        }
-    };
-
-
-
-
-    public void startTimer(long time, final CircularProgressBar c3) {
-        final long percent = time / 100;
-        c3.setTitle("00:00:00");
-        c3.setProgress(100);
-        c3.requestLayout();
-        countDownTimer = new CountDownTimer(time, 1000) {
-            public void onTick(final long millisUntilFinished) {
-                long hours = millisUntilFinished / 1000 / 60 / 60;
-                long minutes = (millisUntilFinished - hours * 60 * 60 * 1000) / 1000 / 60;
-                long seconds = (millisUntilFinished - minutes * 60 * 1000 - hours * 60 * 60 * 1000) / 1000;
-                String hour = "" + hours;
-                String minute = "" + minutes;
-                String second = "" + seconds;
-                if (hour.length() < 2) hour = "0" + hour;
-                if (minute.length() < 2) minute = "0" + minute;
-                if (second.length() < 2) second = "0" + second;
-                c3.setTitle("" + hour + ":"
-                        + minute + ":"
-                        + second);
-                c3.setProgress((int) (millisUntilFinished / percent));
-                c3.requestLayout();
-            }
-
-            public void onFinish() {
-                c3.setTitle("00:00:00");
-                c3.setProgress(100);
-                c3.requestLayout();
-                smsSend(parkNumber.getText().toString() + "*" + carNum + "*1");
-            }
-        }.start();
-    }
-
-    public void smsSend(String text) {//Direct sending
-      /*  Intent sentIn = new Intent(SENT_SMS_FLAG);
-        final PendingIntent sentPIn = PendingIntent.getBroadcast(this, 0,
-                sentIn, 0);
-        Intent deliverIn = new Intent(SENT_SMS_FLAG);
-        final PendingIntent deliverPIn = PendingIntent.getBroadcast(this, 0,
-                deliverIn, 0);
-        SmsManager smsManager = SmsManager.getDefault();
-        // отправляем сообщение
-        smsManager.sendTextMessage("7757", null, text, sentPIn, deliverPIn);*/
-      /*  Toast.makeText(this, text, Toast.LENGTH_SHORT).show();
-        log.append(calendar.getInstance().getTime().toString().split(" ")[3] + ": SMS " + text + " has sent!\n");
-    }
-*/
  public void disableBroadcastReceiver() {
      ComponentName receiver = new ComponentName(this, IncomingSms.class);
      PackageManager pm = this.getPackageManager();
      pm.setComponentEnabledSetting(receiver,
              PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
              PackageManager.DONT_KILL_APP);
-     Toast.makeText(this, "Disabled logging", Toast.LENGTH_SHORT).show();
+   //  Toast.makeText(this, "Слежение прекращено", Toast.LENGTH_SHORT).show();
      ((NotificationManager) getApplicationContext().getSystemService(Context.NOTIFICATION_SERVICE)).cancel(NOTIFICATION);
  }
     @Override
@@ -299,56 +233,9 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    protected void onResume() {
-        super.onResume();
-    /*    SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        parkNumber.setText(prefs.getString("PARKING_NUMBER", ""));
-        c3.setTitle(prefs.getString("CIRCULAR_BAR_VALUE", ""));
-        parkCosts.setText(prefs.getString("PARKING_COSTS", ""));
-        funds.setText(prefs.getString("FUNDS", ""));
-        log.setText(prefs.getString("LOG", ""));
-        carNum = prefs.getString("CAR_NUMBER", "");
-        c3.requestLayout();
-        int progress = prefs.getInt("CIRCULAR_BAR_PROGRESS", 19);
-        seekBar.setProgress(prefs.getInt("TIMESCALE", 29));
-        seekBarText.setText("" + (double) seekBar.getProgress() / 2 + " minutes");
-        mills = (long) ((double) progress / 2 * 60 * 1000 + (double) progress % 2 * 60 * 1000) - 60000;
-        millisec = prefs.getLong("MILLISEC", 870000);
-        fund = (double) prefs.getFloat("FUND", 0.0F);
-        thissum = (double) prefs.getFloat("THISSUM", 0.0F);
-        getBool(isWorking);*/
-        //  registerReceiver(sentReceiver, new IntentFilter(SENT_SMS_FLAG));
-        //   registerReceiver(deliverReceiver, new IntentFilter(DELIVER_SMS_FLAG));
-        //   registerReceiver(broadcastReceiver, new IntentFilter("broadCastName"));
-    }
-
-
-    protected void onPause() {
-        super.onPause();
-      /*  SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(this).edit();
-        editor.putString("PARKING_NUMBER", parkNumber.getText().toString());
-        editor.putInt("TIMESCALE", seekBar.getProgress());
-        editor.putInt("CIRCULAR_BAR_PROGRESS", c3.getProgress());
-        editor.putString("CIRCULAR_BAR_VALUE", c3.getTitle());
-        editor.putString("PARKING_COSTS", parkCosts.getText().toString());
-        editor.putString("FUNDS", funds.getText().toString());
-        editor.putString("LOG", log.getText().toString());
-        editor.putLong("MILLS", mills);
-        editor.putLong("MILLISEC", millisec);
-        editor.putString("CAR_NUMBER", carNum);
-        editor.putFloat("THISSUM", thissum.floatValue());
-        editor.putFloat("FUND", fund.floatValue());
-        editor.commit();*/
-    }
-
     protected void onDestroy() {
         super.onDestroy();
         disableBroadcastReceiver();
-        //  prefs.edit().clear().commit();
-
-        //     unregisterReceiver(sentReceiver);
-        //    unregisterReceiver(deliverReceiver);
-        //     unregisterReceiver(broadcastReceiver);
     }
 
 

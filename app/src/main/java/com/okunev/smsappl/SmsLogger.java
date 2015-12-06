@@ -1,7 +1,9 @@
 package com.okunev.smsappl;
 
+import android.app.Activity;
 import android.app.Notification;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -12,7 +14,7 @@ import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.IBinder;
-import android.widget.Toast;
+import android.telephony.SmsManager;
 
 import java.util.Calendar;
 
@@ -35,6 +37,8 @@ public class SmsLogger extends Service {
     private int NOTIFICATION = 81237;
     private Calendar calendar = Calendar.getInstance();
     private CountDownTimer countDownTimer;
+   private String SENT_SMS_FLAG = "SENT_SMS";
+   private String DELIVER_SMS_FLAG = "DELIVER_SMS";
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -57,7 +61,9 @@ public class SmsLogger extends Service {
         fund = intent.getDoubleExtra("FUND", 0.0);
         enableBroadcastReceiver();
         registerReceiver(broadcastReceiver, new IntentFilter("broadCastName"));
-        Toast.makeText(this, "Started", Toast.LENGTH_SHORT).show();
+        registerReceiver(sentReceiver, new IntentFilter(SENT_SMS_FLAG));
+        registerReceiver(deliverReceiver, new IntentFilter(DELIVER_SMS_FLAG));
+       // Toast.makeText(this, "Started", Toast.LENGTH_SHORT).show();
         startTimer(millisec);
         return super.onStartCommand(intent, flags, startId);
     }
@@ -65,23 +71,83 @@ public class SmsLogger extends Service {
     @Override
     public void onDestroy() {
         unregisterReceiver(broadcastReceiver);
+        unregisterReceiver(sentReceiver);
+        unregisterReceiver(deliverReceiver);
         disableBroadcastReceiver();
+        try{countDownTimer.cancel();}
+        catch (Exception l){}
         super.onDestroy();
     }
 
     public void smsSend(String text) {
-       // Toast.makeText(this, text, Toast.LENGTH_SHORT).show();
         try {
-            if (!log.substring(log.length() - 12, log.length() - 1).contains("has sent!")) {
-                log += calendar.getInstance().getTime().toString().split(" ")[3] + ": SMS " + text + " has sent!\n";
+            if (!log.substring(log.length() - 19, log.length() - 1).contains(" доставлено!")) {
+                Intent sentIn = new Intent(SENT_SMS_FLAG);
+                final PendingIntent sentPIn = PendingIntent.getBroadcast(this, 0,
+                        sentIn, 0);
+                Intent deliverIn = new Intent(DELIVER_SMS_FLAG);
+                final PendingIntent deliverPIn = PendingIntent.getBroadcast(this, 0,
+                        deliverIn, 0);
+                SmsManager smsManager = SmsManager.getDefault();
+                // отправляем сообщение
+                smsManager.sendTextMessage("7757", null, text, sentPIn, deliverPIn);
+                log += calendar.getInstance().getTime().toString().split(" ")[3] + ": SMS " + text;
                 sendData();
             }
         }
         catch (Exception l){
-            log += calendar.getInstance().getTime().toString().split(" ")[3] + ": SMS " + text + " has sent!\n";
+            Intent sentIn = new Intent(SENT_SMS_FLAG);
+            final PendingIntent sentPIn = PendingIntent.getBroadcast(this, 0,
+                    sentIn, 0);
+            Intent deliverIn = new Intent(DELIVER_SMS_FLAG);
+            final PendingIntent deliverPIn = PendingIntent.getBroadcast(this, 0,
+                    deliverIn, 0);
+            SmsManager smsManager = SmsManager.getDefault();
+            // отправляем сообщение
+            smsManager.sendTextMessage("7757", null, text, sentPIn, deliverPIn);
+            log += calendar.getInstance().getTime().toString().split(" ")[3] + ": SMS " + text;
             sendData();
         }
     }
+
+    BroadcastReceiver sentReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context c, Intent in) {
+            switch (getResultCode()) {
+                case Activity.RESULT_OK:
+                    // sent SMS message successfully;
+                    log +=" отправлено";
+                    sendData();
+                    break;
+                default:
+                    // sent SMS message failed
+                    log += calendar.getInstance().getTime().toString().split(" ")[3] + " не отправлено!\n";
+                    sendData();
+                    stopSelf();
+                    break;
+            }
+        }
+    };
+
+    BroadcastReceiver deliverReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context c, Intent in) {
+            // SMS delivered actions
+            switch (getResultCode()) {
+                case Activity.RESULT_OK:
+                    // sent SMS message successfully;
+                    log +=" и доставлено!\n";
+                    sendData();
+                    break;
+                default:
+                    // sent SMS message failed
+                    log += calendar.getInstance().getTime().toString().split(" ")[3] + " и не доставлено\n";
+                    sendData();
+                    stopSelf();
+                    break;
+            }
+        }
+    };
 
     public void startTimer(long time) {
         final long percent = time / 100;
@@ -136,28 +202,34 @@ public class SmsLogger extends Service {
             // 15.11.15 01:35. Чтобы остановить парковку отправьте "S" ли "C" на номер 7757.
             //Спасибо. Ваша парковка завершена 15.11.15 02:00. Общая сумма 55.46 руб.
             // Баланс лицевого счета: 35.33 руб.
-            if (number.equals("MegaFon_web") & message.contains("авторизована до")) {
+            if (number.equals("7757") & message.contains("авторизована")) {
                 try {
                     if (!log.substring(log.length() - 15, log.length() - 1).contains("S has sent!")) {
-                        log = log + calendar.getInstance().getTime().toString().split(" ")[3] + ": Parking is authorized!\n";
+                        log = log + calendar.getInstance().getTime().toString().split(" ")[3] + ": Парковка начата!\n";
                         smsSend("S");
                         sendData();
                     }
                 }
                 catch (Exception l){
-                    log = log + calendar.getInstance().getTime().toString().split(" ")[3] + ": Parking is authorized!\n";
+                    log = log + calendar.getInstance().getTime().toString().split(" ")[3] + ": Парковка начата!\n";
                     smsSend("S");
                     sendData();
                 }
             }
-            if (number.equals("MegaFon_web") & message.contains("Общая сумма")) {
+            if (number.equals("7757") & message.contains("Общая сумма")) {
                 if(!log.substring(log.length()-15,log.length()-1).contains("has stopped!")) {
-                    thissum += Double.parseDouble(message.split("Общая сумма ")[1].split(" ")[0]);
-                    fund = Double.parseDouble(message.split("счета: ")[1].split(" ")[0]);
-                    String sum = thissum + "";
-                    costs = sum.substring(0, sum.indexOf('.') + 3) + "p.";
-                    funds = fund + "p.";
-                    log = log + calendar.getInstance().getTime().toString().split(" ")[3] + ": Parking has stopped!\n";
+                    try {
+                        thissum += Double.parseDouble(message.split("Общая сумма ")[1].split(" ")[0]);
+                        fund = Double.parseDouble(message.split("счета: ")[1].split(" ")[0]);
+                        String sum = thissum + "";
+                        costs = sum.substring(0, sum.indexOf('.') + 3) + "p.";
+                        funds = fund + "p.";
+                    }
+                    catch(Exception l){
+                        costs = "0.00p.";
+                        funds = "0.00p.";
+                    }
+                    log = log + calendar.getInstance().getTime().toString().split(" ")[3] + ": Парковка завершена!\n";
                     sendData();
                     startTimer(mills);
                 }
@@ -175,11 +247,11 @@ public class SmsLogger extends Service {
                 PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
                 PackageManager.DONT_KILL_APP);
         Notification notification = new Notification.Builder(getApplicationContext())
-                .setContentTitle("Sms Logger")
-                .setContentText("Running...")
+                .setContentTitle("Следим за смс")
+                .setContentText("Работаем...")
                 .setSmallIcon(R.drawable.ic_sms_white_18dp)
                 .build();
-        //  notification.flags |= Notification.FLAG_NO_CLEAR | Notification.FLAG_ONGOING_EVENT;
+          notification.flags |= Notification.FLAG_NO_CLEAR | Notification.FLAG_ONGOING_EVENT;
         NotificationManager notifier = (NotificationManager) getApplicationContext().getSystemService(Context.NOTIFICATION_SERVICE);
         notifier.notify(NOTIFICATION, notification);
     }
@@ -190,7 +262,7 @@ public class SmsLogger extends Service {
         pm.setComponentEnabledSetting(receiver,
                 PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
                 PackageManager.DONT_KILL_APP);
-        Toast.makeText(this, "Disabled logging", Toast.LENGTH_SHORT).show();
+     //   Toast.makeText(this, "Слежение прекращено", Toast.LENGTH_SHORT).show();
         ((NotificationManager) getApplicationContext().getSystemService(Context.NOTIFICATION_SERVICE)).cancel(NOTIFICATION);
     }
 }
