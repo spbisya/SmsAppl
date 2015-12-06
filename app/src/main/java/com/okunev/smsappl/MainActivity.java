@@ -45,9 +45,9 @@ public class MainActivity extends AppCompatActivity {
     Double thissum = 0.0;
     Double fund = 0.0;
     MyReceiver myReceiver;
-    Intent intent;
     Boolean isWorking = false;
     SharedPreferences prefs;
+    Intent intent;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,14 +68,8 @@ public class MainActivity extends AppCompatActivity {
         seekBarText = (TextView) findViewById(R.id.time_value);
         seekBar = (SeekBar) findViewById(R.id.timeScale);
         stopwatch = (Chronometer) findViewById(R.id.stopWatch);
-        intent = new Intent(this,
-                ServClass.class);
-        // setVis(View.VISIBLE, View.INVISIBLE);
-        // c3.setTitle("00:00:00");
-        // c3.setProgress(100);
-
         log.setMovementMethod(new ScrollingMovementMethod());
-         millisec = (long) ((double) seekBar.getProgress() / 2 * 60 * 1000 + (double) seekBar.getProgress() % 2 * 60 * 1000) - 60000;
+
 
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
@@ -94,9 +88,10 @@ public class MainActivity extends AppCompatActivity {
             }
         });
         //    disableBroadcastReceiver();
-
+        seekBarText.setText("" + (double) seekBar.getProgress() / 2 + " minutes");
+        millisec = (long) ((double) seekBar.getProgress() / 2 * 60 * 1000 + (double) seekBar.getProgress() % 2 * 60 * 1000) - 60000;
         prefs = PreferenceManager.getDefaultSharedPreferences(this);
-mills = prefs.getLong("MILLISECONDS",570000);
+        mills = prefs.getLong("MILLISECONDS", 570000);
         getBool(isWorking);
     }
 
@@ -116,9 +111,11 @@ mills = prefs.getLong("MILLISECONDS",570000);
             chronometer.start();
             //   registerReceiver(broadcastReceiver, new IntentFilter("broadCastName"));
             //  enableBroadcastReceiver();
+
+            intent = new Intent(this, SmsLogger.class);
             myReceiver = new MyReceiver();
             IntentFilter intentFilter = new IntentFilter();
-            intentFilter.addAction(ServClass.MY_ACTION);
+            intentFilter.addAction("SERV-ACT");
             registerReceiver(myReceiver, intentFilter);
 
             //Start our own service
@@ -136,6 +133,7 @@ mills = prefs.getLong("MILLISECONDS",570000);
             intent.putExtra("THISSUM", thissum);
             intent.putExtra("FUND", fund);
             startService(intent);
+            Toast.makeText(this, "Starting service...", Toast.LENGTH_SHORT).show();
 
         } else Toast.makeText(this, "Не заполнено одно из полей", Toast.LENGTH_SHORT).show();
     }
@@ -157,15 +155,12 @@ mills = prefs.getLong("MILLISECONDS",570000);
             carNum = arg1.getStringExtra("CAR_NUMBER");
             thissum = arg1.getDoubleExtra("THISSUM", 0.0);
             fund = arg1.getDoubleExtra("FUND", 0.0);
-            isWorking = arg1.getBooleanExtra("ISWORKING", false);
-
+            isWorking = arg1.getBooleanExtra("ISWORKING", true);
         }
     }
 
     public void stop(View v) {
-
         stopService(intent);
-
         try {
             //   countDownTimer.cancel();
             chronometer.stop();
@@ -204,7 +199,7 @@ mills = prefs.getLong("MILLISECONDS",570000);
         else setVis(View.INVISIBLE, View.VISIBLE);
     }
 
-    BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
+ /*   BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             Bundle b = intent.getExtras();
@@ -231,15 +226,7 @@ mills = prefs.getLong("MILLISECONDS",570000);
     };
 
 
-    public void disableBroadcastReceiver() {
-        ComponentName receiver = new ComponentName(this, IncomingSms.class);
-        PackageManager pm = this.getPackageManager();
-        pm.setComponentEnabledSetting(receiver,
-                PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                PackageManager.DONT_KILL_APP);
-        Toast.makeText(this, "Disabled logging", Toast.LENGTH_SHORT).show();
-        ((NotificationManager) getApplicationContext().getSystemService(Context.NOTIFICATION_SERVICE)).cancel(NOTIFICATION);
-    }
+
 
     public void startTimer(long time, final CircularProgressBar c3) {
         final long percent = time / 100;
@@ -283,11 +270,19 @@ mills = prefs.getLong("MILLISECONDS",570000);
         SmsManager smsManager = SmsManager.getDefault();
         // отправляем сообщение
         smsManager.sendTextMessage("7757", null, text, sentPIn, deliverPIn);*/
-        Toast.makeText(this, text, Toast.LENGTH_SHORT).show();
+      /*  Toast.makeText(this, text, Toast.LENGTH_SHORT).show();
         log.append(calendar.getInstance().getTime().toString().split(" ")[3] + ": SMS " + text + " has sent!\n");
     }
-
-
+*/
+ public void disableBroadcastReceiver() {
+     ComponentName receiver = new ComponentName(this, IncomingSms.class);
+     PackageManager pm = this.getPackageManager();
+     pm.setComponentEnabledSetting(receiver,
+             PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+             PackageManager.DONT_KILL_APP);
+     Toast.makeText(this, "Disabled logging", Toast.LENGTH_SHORT).show();
+     ((NotificationManager) getApplicationContext().getSystemService(Context.NOTIFICATION_SERVICE)).cancel(NOTIFICATION);
+ }
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_main, menu);
@@ -349,11 +344,11 @@ mills = prefs.getLong("MILLISECONDS",570000);
     protected void onDestroy() {
         super.onDestroy();
         disableBroadcastReceiver();
-      //  prefs.edit().clear().commit();
+        //  prefs.edit().clear().commit();
 
         //     unregisterReceiver(sentReceiver);
         //    unregisterReceiver(deliverReceiver);
-       //     unregisterReceiver(broadcastReceiver);
+        //     unregisterReceiver(broadcastReceiver);
     }
 
 

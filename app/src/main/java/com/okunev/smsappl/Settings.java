@@ -47,8 +47,15 @@ public class Settings extends AppCompatActivity {
         });
         prefs =  PreferenceManager.getDefaultSharedPreferences(this);
         carnum.setText(prefs.getString("CAR_NUMBER", ""));
-        freq.setText("" + (double)prefs.getInt("PROGRESS", 19)/2+ " minutes");
-        frequency.setProgress(prefs.getInt("PROGRESS", 19));
+        freq.setText("" + (double)prefs.getInt("PROGRESS", 1)/2+ " minutes");
+        frequency.setProgress(prefs.getInt("PROGRESS", 1));
+        SharedPreferences.Editor editor =  PreferenceManager.getDefaultSharedPreferences(this).edit();
+        editor.putString("CAR_NUMBER", carnum.getText().toString());
+        editor.putFloat("FREQUENCY", frequency.getProgress() / 2);
+        editor.putInt("PROGRESS", frequency.getProgress());
+        editor.putLong("MILLISECONDS", millisec);
+        editor.commit();
+        editor.apply();
     }
 
     public void save(View v) {

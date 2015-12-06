@@ -11,7 +11,6 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.telephony.SmsMessage;
 import android.util.Log;
-import android.widget.Toast;
 
 
 public class IncomingSms extends BroadcastReceiver {
@@ -34,7 +33,7 @@ public class IncomingSms extends BroadcastReceiver {
                 String ns = Context.NOTIFICATION_SERVICE;
                 NotificationManager nMgr = (NotificationManager)context.getSystemService(ns);
                 nMgr.cancelAll();
-                Toast.makeText(context, message, Toast.LENGTH_LONG).show();
+              //  Toast.makeText(context, message, Toast.LENGTH_LONG).show();
                 Intent i1 = new Intent("broadCastName");
                 // Data you need to pass to activity
                 i1.putExtra("NUMBER", senderNum);
